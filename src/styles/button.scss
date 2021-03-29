@@ -1,0 +1,29 @@
+@import './color-variables.scss';
+
+button.btn {
+    padding: 0.3rem 0.7rem;
+    border: solid 1px $ctl-border-secondary-color;
+    border-radius: 2px;
+    font-size: medium;
+    margin: 0 0.3em;
+}
+button.btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px $ctl-border-secondary-color;
+}
+
+button.btn:hover {
+    background-color: $ctl-bg-hover-primary-color;
+}
+button.btn:active {
+    background-color: $ctl-bg-active-primary-color;
+}
+
+button.btn-primary {
+    border-color: $ctl-border-primary-color;
+    color: $ctl-border-primary-color;
+}
+button.btn-primary:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px $ctl-border-primary-color;
+}
