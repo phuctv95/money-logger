@@ -17,4 +17,11 @@ export class HelperService {
     });
   }
 
+  nextCharOf(char: string) {
+    if (char.length > 1) {
+      throw 'char length must be 1';
+    }
+    return String.fromCharCode(char.charCodeAt(0) + 1);
+  }
+
 }

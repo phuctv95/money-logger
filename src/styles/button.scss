@@ -11,6 +11,13 @@ button.btn:focus {
     outline: none;
     box-shadow: 0 0 0 1px $ctl-border-secondary-color;
 }
+button.btn:disabled {
+    border: solid 1px lighten($ctl-border-secondary-color, 10%);
+    color: lighten($ctl-border-secondary-color, 10%);
+}
+button.btn:disabled:hover {
+    background-color: unset;
+}
 
 button.btn:hover {
     background-color: $ctl-bg-hover-primary-color;

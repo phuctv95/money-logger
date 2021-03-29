@@ -9,10 +9,11 @@ import { GoogleCredential } from '../models/google-credential';
   providedIn: 'root'
 })
 export class GoogleSheetsService {
-
+  
   private readonly DiscoveryDocs = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
   private readonly Scopes = "https://www.googleapis.com/auth/spreadsheets.readonly";
   private readonly Gapi = gapi;
+  spreadsheetId: string | null = null;
 
   get isSignedIn() {
     return this.Gapi.auth2.getAuthInstance().isSignedIn.get();
@@ -20,16 +21,17 @@ export class GoogleSheetsService {
 
   constructor() { }
 
-  signInAndOpenSpreadsheet(credential: GoogleCredential, spreadsheetId: string) {
+  checkAccessSpreadsheetUsingCredential(credential: GoogleCredential, spreadsheetId: string) {
+    this.spreadsheetId = spreadsheetId;
     return new Promise<boolean>((res, rej) => {
       this.loadLibraries(() => {
         this.initLibraries(credential).then(() => {
           if (this.isSignedIn) {
-            this.checkAccessToSpreadsheet(spreadsheetId).then(_ => res(true), rej)
+            this.checkAccessSpreadsheet().then(_ => res(true), rej)
           } else {
             this.signIn().then(response => {
               if (response.isSignedIn()) {
-                this.checkAccessToSpreadsheet(spreadsheetId).then(_ => res(true), rej)
+                this.checkAccessSpreadsheet().then(_ => res(true), rej)
               } else {
                 rej("Sign in failed.")
               }
@@ -44,11 +46,11 @@ export class GoogleSheetsService {
     return /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/g.exec(spreadsheetUrl)![1];
   }
 
-  getRange(spreadsheetId: string, range: string) {
-    return new Promise((res, rej) => {
+  getRange(range: string) {
+    return new Promise<any[][] | undefined>((res, rej) => {
       this.Gapi.client.sheets.spreadsheets.values
         .get({
-          spreadsheetId: spreadsheetId,
+          spreadsheetId: this.spreadsheetId!,
           range: range
         })
         .then(response => res(response.result.values))
@@ -56,12 +58,36 @@ export class GoogleSheetsService {
     });
   }
 
-  // Step 1
+  checkAccessSpreadsheet() {
+    return new Promise<boolean>((res, _) => {
+      try {
+        if (this.spreadsheetId == null) {
+          res(false);
+          return;
+        }
+        this.Gapi.client.sheets.spreadsheets
+          .get({
+            spreadsheetId: this.spreadsheetId,
+            fields: 'spreadsheetId',
+          })
+          .then(_ => res(true))
+          .catch(_ => res(false));
+      } catch (_) {
+        res(false);
+      }
+    });
+  }
+
+  write(range: string, value: string) {
+    return new Promise<void>((res, rej) => {
+      setTimeout(() => res(), 2000);
+    });
+  }
+
   private loadLibraries(initCallBack: () => void) {
     this.Gapi.load('client:auth2', initCallBack);
   }
 
-  // Step 2
   private initLibraries(credential: GoogleCredential) {
     return this.Gapi.client.init({
       apiKey: credential.apiKey,
@@ -73,13 +99,6 @@ export class GoogleSheetsService {
 
   private signIn() {
     return this.Gapi.auth2.getAuthInstance().signIn();
-  }
-
-  private checkAccessToSpreadsheet(spreadsheetId: string) {
-    return this.Gapi.client.sheets.spreadsheets.get({
-      spreadsheetId: spreadsheetId,
-      fields: 'spreadsheetId',
-    });
   }
 
 }

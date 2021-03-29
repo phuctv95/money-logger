@@ -1,1 +1,26 @@
-<p>today-logger works!</p>
+<app-window [header]="todayHeader" [width]="'fit-content'">
+    
+    <table class="table log-table" [formGroup]="form">
+        <tbody formArrayName="records">
+            <tr *ngFor="let record of records.controls; let i=index">
+                <div [formGroupName]="i">
+                    <td class="log-cell description">
+                        <input formControlName="description" [readonly]="isSaving">
+                    </td>
+                    <td class="log-cell cost">
+                        <input formControlName="cost" [readonly]="isSaving">
+                    </td>
+                </div>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="total">Total: {{total}}</div>
+
+    <div class="actions">
+        <button class="btn">Sign out</button>
+        <button class="btn btn-primary" [disabled]="!form.dirty || isSaving" (click)="save()">Save</button>
+        <app-spinner *ngIf="isSaving"></app-spinner>
+    </div>
+    
+</app-window>

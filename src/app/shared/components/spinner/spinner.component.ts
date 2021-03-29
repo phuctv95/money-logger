@@ -7,7 +7,7 @@ import { Component, Input, OnInit } from '@angular/core';
 })
 export class SpinnerComponent implements OnInit {
 
-  @Input() visible = false;
+  @Input() visible = true;
 
   constructor() { }
 
