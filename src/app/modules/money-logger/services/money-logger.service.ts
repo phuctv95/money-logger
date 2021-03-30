@@ -30,7 +30,8 @@ export class MoneyLoggerService extends Base {
     return this.googleSheets
       .getRange(`${sheetName}!${this.DateHeaderRanges[0]}`)
       .then(values => this.getRangeOfTodayHeader(today, values![0][0]))
-      .then(rangeOfTodayHeader => this.getRangeOfTodayRecords(rangeOfTodayHeader!, sheetName))
+      .then(rangeOfTodayHeader => this.validateRangeOfTodayHeader(rangeOfTodayHeader, sheetName, today))
+      .then(rangeOfTodayHeader => this.getRangeOfTodayRecords(rangeOfTodayHeader, sheetName))
       .then(values => {
         if (values === undefined) {
           values = []
@@ -64,6 +65,26 @@ export class MoneyLoggerService extends Base {
     from = `${from[0]}${+from.substring(1) + 1}`;
     let to = `${this.helper.nextCharOf(from[0])}${+from.substring(1) + this.NoRecords - 1}`;
     return this.googleSheets.getRange(`${sheetName}!${from}:${to}`);
+  }
+
+  private validateRangeOfTodayHeader(rangeOfTodayHeader: string | null, sheetName: string, today: moment.Moment) {
+    if (!rangeOfTodayHeader) {
+      throw Error('rangeOfTodayHeader must has value.');
+    }
+    return this.googleSheets.getRange(`${sheetName}!${rangeOfTodayHeader}`)
+      .then(values => {
+        if (!values) {
+          throw Error('validation failed.');
+        }
+        const value = values[0][0];
+        if (today.format('MMM DD') === moment(value).format('MMM DD')) {
+          return rangeOfTodayHeader;
+        }
+        throw Error('validation failed.');
+      })
+      .catch(err => {
+        throw Error(err);
+      });
   }
 
 }
