@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import * as moment from 'moment';
 import { Base } from 'src/app/shared/components/base';
 import { HelperService } from 'src/app/shared/services/helper.service';
+import { DayLog } from '../models/day-log';
 import { LogRecord } from '../models/log-record';
 import { GoogleSheetsService } from './google-sheets.service';
 
@@ -24,67 +25,85 @@ export class MoneyLoggerService extends Base {
   constructor(private helper: HelperService,
     private googleSheets: GoogleSheetsService) { super(); }
 
-  getTodayRecords() {
+  async getTodayLog() {
     const today = moment();
     const sheetName = today.format('MMM');
-    return this.googleSheets
-      .getRange(`${sheetName}!${this.DateHeaderRanges[0]}`)
-      .then(values => this.getRangeOfTodayHeader(today, values![0][0]))
-      .then(rangeOfTodayHeader => this.validateRangeOfTodayHeader(rangeOfTodayHeader, sheetName, today))
-      .then(rangeOfTodayHeader => this.getRangeOfTodayRecords(rangeOfTodayHeader, sheetName))
-      .then(values => {
-        if (values === undefined) {
-          values = []
-        }
-        const result = [] as LogRecord[];
-        values.forEach(
-          v => result.push({ description: v[0], cost: +v[1] || null })
-        );
-        for (let i = 0; i < this.NoRecords - values.length; i++) {
-          result.push({ description: '', cost: null });
-        }
-        return result;
-      })
-      .catch(this.handleErr);
+    try {
+      const firstDayHeader = (await this.googleSheets.getRangeValues(`${sheetName}!${this.DateHeaderRanges[0]}`))![0][0];
+      const rangeOfTodayHeader = this.getRangeOfTodayHeader(today, firstDayHeader, sheetName);
+      await this.validateRangeOfDayHeader(rangeOfTodayHeader, today);
+      
+      let from = rangeOfTodayHeader!.split('!')[1].split(':')[0];
+      from = `${from[0]}${+from.substring(1) + 1}`;
+      let to = `${this.helper.nextCharOf(from[0])}${+from.substring(1) + this.NoRecords - 1}`;
+      let values = await this.googleSheets.getRangeValues(`${sheetName}!${from}:${to}`);
+      if (values === undefined) {
+        values = [];
+      }
+
+      const records = [] as LogRecord[];
+      values.forEach(
+        v => records.push({ description: v[0], cost: +v[1] || null })
+      );
+      for (let i = 0; i < this.NoRecords - values.length; i++) {
+        records.push({ description: '', cost: null });
+      }
+
+      return {
+        headerRange: rangeOfTodayHeader,
+        recordsRange: `${sheetName}!${from}:${to}`,
+        records: records
+      } as DayLog;
+    } catch (err) {
+      return this.handleErr(err);
+    }
   }
 
-  getRangeOfTodayHeader(today: moment.Moment, firstDayHeader: string) {
+  getRangeOfTodayHeader(today: moment.Moment, firstDayHeader: string, sheetName: string) {
     let date = moment(`${today.format('YYYY')} ${firstDayHeader}`);
     for (let i = 0; i < this.DateHeaderRanges.length; i++) {
       const range = this.DateHeaderRanges[i];
       if (date.format('MMM DD') === today.format('MMM DD')) {
-        return range;
+        return `${sheetName}!${range}`;
       }
       date = date.add(1, 'days');
     }
     return null;
   }
 
-  getRangeOfTodayRecords(rangeOfTodayHeader: string, sheetName: string) {
-    let from = rangeOfTodayHeader.split(':')[0];
-    from = `${from[0]}${+from.substring(1) + 1}`;
-    let to = `${this.helper.nextCharOf(from[0])}${+from.substring(1) + this.NoRecords - 1}`;
-    return this.googleSheets.getRange(`${sheetName}!${from}:${to}`);
+  async writeToday(records: LogRecord[], recordsRange: string) {
+    if (records.length !== this.NoRecords) {
+      throw `Number of records to save must be ${this.NoRecords}`;
+    }
+    await this.validateDayHeader(recordsRange, moment());
+    this.googleSheets.write(recordsRange, records.map(r => [r.description, r.cost]));
   }
 
-  private validateRangeOfTodayHeader(rangeOfTodayHeader: string | null, sheetName: string, today: moment.Moment) {
-    if (!rangeOfTodayHeader) {
+  private async validateDayHeader(recordsRange: string, day: moment.Moment) {
+    const sheetName = recordsRange.split('!')[0];
+    const from = recordsRange.split('!')[1].split(':')[0];
+    const dayRange = `${sheetName}!${from[0]}${+from[1] - 1}`
+      + `:${this.helper.nextCharOf(from[0])}${+from[1] - 1}`
+    await this.validateRangeOfDayHeader(dayRange, day);
+  }
+
+  private async validateRangeOfDayHeader(rangeOfDayHeader: string | null, day: moment.Moment) {
+    if (!rangeOfDayHeader) {
       throw Error('rangeOfTodayHeader must has value.');
     }
-    return this.googleSheets.getRange(`${sheetName}!${rangeOfTodayHeader}`)
-      .then(values => {
-        if (!values) {
-          throw Error('validation failed.');
-        }
-        const value = values[0][0];
-        if (today.format('MMM DD') === moment(value).format('MMM DD')) {
-          return rangeOfTodayHeader;
-        }
+    try {
+      const values = await this.googleSheets.getRangeValues(rangeOfDayHeader);
+      if (!values) {
         throw Error('validation failed.');
-      })
-      .catch(err => {
-        throw Error(err);
-      });
+      }
+      const value = values[0][0];
+      if (day.format('MMM DD') === moment(value).format('MMM DD')) {
+        return;
+      }
+      throw Error('validation failed.');
+    } catch (err) {
+      throw Error(err);
+    }
   }
 
 }

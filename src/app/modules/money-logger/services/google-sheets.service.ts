@@ -11,7 +11,7 @@ import { GoogleCredential } from '../models/google-credential';
 export class GoogleSheetsService {
   
   private readonly DiscoveryDocs = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
-  private readonly Scopes = "https://www.googleapis.com/auth/spreadsheets.readonly";
+  private readonly Scopes = "https://www.googleapis.com/auth/spreadsheets";
   private readonly Gapi = gapi;
   spreadsheetId: string | null = null;
 
@@ -46,7 +46,7 @@ export class GoogleSheetsService {
     return /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/g.exec(spreadsheetUrl)![1];
   }
 
-  getRange(range: string) {
+  getRangeValues(range: string) {
     return new Promise<any[][] | undefined>((res, rej) => {
       this.Gapi.client.sheets.spreadsheets.values
         .get({
@@ -78,10 +78,13 @@ export class GoogleSheetsService {
     });
   }
 
-  write(range: string, value: string) {
-    return new Promise<void>((res, rej) => {
-      setTimeout(() => res(), 2000);
-    });
+  async write(range: string, values: any[][]) {
+    await this.Gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: this.spreadsheetId!,
+      range: range,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: values }
+    })
   }
 
   private loadLibraries(initCallBack: () => void) {

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormArray, FormBuilder } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Base as Base } from 'src/app/shared/components/base';
+import { DayLog } from '../../models/day-log';
 import { LogRecord } from '../../models/log-record';
 import { GoogleSheetsService } from '../../services/google-sheets.service';
 import { MoneyLoggerService } from '../../services/money-logger.service';
@@ -14,6 +15,7 @@ export class TodayLoggerComponent extends Base implements OnInit {
 
   todayHeader = `Today (${new Date().toLocaleDateString()})`;
   isSaving = false;
+  todayLog: DayLog | undefined;
 
   form = this.fb.group({
     records: this.fb.array([])
@@ -49,25 +51,24 @@ export class TodayLoggerComponent extends Base implements OnInit {
       });
   }
 
-  save() {
+  async save() {
     this.isSaving = true;
-    (this.records.value as LogRecord[]).forEach(record => {
-      // TODO: save record.
-      this.googleSheets
-        .write('A1', record.cost + '')
-        .then(_ => {
-          this.isSaving = false;
-          this.form.markAsPristine();
-        })
-        .catch(this.handleErr);
-    })
+    const records = this.records.value as LogRecord[];
+    try {
+      await this.moneyLogger.writeToday(records, this.todayLog!.recordsRange);
+      this.form.markAsPristine();
+      this.isSaving = false;
+    } catch (error) {
+      this.handleErr(error);
+    }
   }
 
   private loadData() {
     let records = this.moneyLogger
-      .getTodayRecords()
-      .then(records => {
-        (records as LogRecord[]).forEach(record => {
+      .getTodayLog()
+      .then(log => {
+        this.todayLog = log as DayLog;
+        this.todayLog.records.forEach(record => {
           this.records.push(this.fb.group({
             description: [record.description],
             cost: [record.cost],
