@@ -43,9 +43,9 @@ export class StartPageComponent implements OnInit {
     }
     this.isOpening = true;
     let spreadsheetId = this.googleSheets
-      .extractSpreadsheetId(this.form.value.spreadsheetUrl);
+      .getSpreadsheetId(this.form.value.spreadsheetUrl);
     this.googleSheets
-      .checkAccessSpreadsheetUsingCredential(this.credential, spreadsheetId)
+      .accessSpreadsheetUsingCredential(this.credential, spreadsheetId)
       .then(_ => this.router.navigate(['today'], { relativeTo: this.route}))
       .catch(err => {
         alert('There\'s some error, see details in Console.');

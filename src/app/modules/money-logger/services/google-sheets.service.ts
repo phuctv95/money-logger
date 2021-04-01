@@ -21,17 +21,17 @@ export class GoogleSheetsService {
 
   constructor() { }
 
-  checkAccessSpreadsheetUsingCredential(credential: GoogleCredential, spreadsheetId: string) {
+  accessSpreadsheetUsingCredential(credential: GoogleCredential, spreadsheetId: string) {
     this.spreadsheetId = spreadsheetId;
     return new Promise<boolean>((res, rej) => {
       this.loadLibraries(() => {
         this.initLibraries(credential).then(() => {
           if (this.isSignedIn) {
-            this.checkAccessSpreadsheet().then(_ => res(true), rej)
+            this.checkAccessSpreadsheetAfterSignIn().then(_ => res(true), rej)
           } else {
             this.signIn().then(response => {
               if (response.isSignedIn()) {
-                this.checkAccessSpreadsheet().then(_ => res(true), rej)
+                this.checkAccessSpreadsheetAfterSignIn().then(_ => res(true), rej)
               } else {
                 rej("Sign in failed.")
               }
@@ -42,23 +42,7 @@ export class GoogleSheetsService {
     });
   }
 
-  extractSpreadsheetId(spreadsheetUrl: string) {
-    return /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/g.exec(spreadsheetUrl)![1];
-  }
-
-  getRangeValues(range: string) {
-    return new Promise<any[][] | undefined>((res, rej) => {
-      this.Gapi.client.sheets.spreadsheets.values
-        .get({
-          spreadsheetId: this.spreadsheetId!,
-          range: range
-        })
-        .then(response => res(response.result.values))
-        .catch(rej);
-    });
-  }
-
-  checkAccessSpreadsheet() {
+  checkAccessSpreadsheetAfterSignIn() {
     return new Promise<boolean>((res, _) => {
       try {
         if (this.spreadsheetId == null) {
@@ -75,6 +59,22 @@ export class GoogleSheetsService {
       } catch (_) {
         res(false);
       }
+    });
+  }
+
+  getSpreadsheetId(spreadsheetUrl: string) {
+    return /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/g.exec(spreadsheetUrl)![1];
+  }
+
+  read(range: string) {
+    return new Promise<any[][] | undefined>((res, rej) => {
+      this.Gapi.client.sheets.spreadsheets.values
+        .get({
+          spreadsheetId: this.spreadsheetId!,
+          range: range
+        })
+        .then(response => res(response.result.values))
+        .catch(rej);
     });
   }
 

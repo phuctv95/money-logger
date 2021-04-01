@@ -41,7 +41,7 @@ export class TodayLoggerComponent extends Base implements OnInit {
 
   ngOnInit(): void {
     this.googleSheets
-      .checkAccessSpreadsheet()
+      .checkAccessSpreadsheetAfterSignIn()
       .then(canAccess => {
         if (canAccess) {
           this.loadData();

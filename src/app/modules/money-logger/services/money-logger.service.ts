@@ -29,14 +29,14 @@ export class MoneyLoggerService extends Base {
     const today = moment();
     const sheetName = today.format('MMM');
     try {
-      const firstDayHeader = (await this.googleSheets.getRangeValues(`${sheetName}!${this.DateHeaderRanges[0]}`))![0][0];
+      const firstDayHeader = (await this.googleSheets.read(`${sheetName}!${this.DateHeaderRanges[0]}`))![0][0];
       const rangeOfTodayHeader = this.getRangeOfTodayHeader(today, firstDayHeader, sheetName);
-      await this.validateRangeOfDayHeader(rangeOfTodayHeader, today);
+      await this.validateDayHeaderRange(rangeOfTodayHeader, today);
       
       let from = rangeOfTodayHeader!.split('!')[1].split(':')[0];
       from = `${from[0]}${+from.substring(1) + 1}`;
       let to = `${this.helper.nextCharOf(from[0])}${+from.substring(1) + this.NoRecords - 1}`;
-      let values = await this.googleSheets.getRangeValues(`${sheetName}!${from}:${to}`);
+      let values = await this.googleSheets.read(`${sheetName}!${from}:${to}`);
       if (values === undefined) {
         values = [];
       }
@@ -59,7 +59,15 @@ export class MoneyLoggerService extends Base {
     }
   }
 
-  getRangeOfTodayHeader(today: moment.Moment, firstDayHeader: string, sheetName: string) {
+  async writeToday(records: LogRecord[], recordsRange: string) {
+    if (records.length !== this.NoRecords) {
+      throw `Number of records to save must be ${this.NoRecords}`;
+    }
+    await this.validateDayLog(recordsRange, moment());
+    this.googleSheets.write(recordsRange, records.map(r => [r.description, r.cost]));
+  }
+
+  private getRangeOfTodayHeader(today: moment.Moment, firstDayHeader: string, sheetName: string) {
     let date = moment(`${today.format('YYYY')} ${firstDayHeader}`);
     for (let i = 0; i < this.DateHeaderRanges.length; i++) {
       const range = this.DateHeaderRanges[i];
@@ -71,28 +79,20 @@ export class MoneyLoggerService extends Base {
     return null;
   }
 
-  async writeToday(records: LogRecord[], recordsRange: string) {
-    if (records.length !== this.NoRecords) {
-      throw `Number of records to save must be ${this.NoRecords}`;
-    }
-    await this.validateDayHeader(recordsRange, moment());
-    this.googleSheets.write(recordsRange, records.map(r => [r.description, r.cost]));
-  }
-
-  private async validateDayHeader(recordsRange: string, day: moment.Moment) {
+  private async validateDayLog(recordsRange: string, day: moment.Moment) {
     const sheetName = recordsRange.split('!')[0];
     const from = recordsRange.split('!')[1].split(':')[0];
     const dayRange = `${sheetName}!${from[0]}${+from[1] - 1}`
       + `:${this.helper.nextCharOf(from[0])}${+from[1] - 1}`
-    await this.validateRangeOfDayHeader(dayRange, day);
+    await this.validateDayHeaderRange(dayRange, day);
   }
 
-  private async validateRangeOfDayHeader(rangeOfDayHeader: string | null, day: moment.Moment) {
+  private async validateDayHeaderRange(rangeOfDayHeader: string | null, day: moment.Moment) {
     if (!rangeOfDayHeader) {
       throw Error('rangeOfTodayHeader must has value.');
     }
     try {
-      const values = await this.googleSheets.getRangeValues(rangeOfDayHeader);
+      const values = await this.googleSheets.read(rangeOfDayHeader);
       if (!values) {
         throw Error('validation failed.');
       }
