@@ -13,6 +13,7 @@ import { MoneyLoggerService } from '../../services/money-logger.service';
 })
 export class TodayLoggerComponent extends Base implements OnInit {
 
+  isBusy = true;
   todayHeader = `Today (${new Date().toLocaleDateString()})`;
   isSaving = false;
   todayLog: DayLog | undefined;
@@ -74,6 +75,7 @@ export class TodayLoggerComponent extends Base implements OnInit {
             cost: [record.cost],
           }));
         });
+        this.isBusy = false;
       })
       .catch(this.handleErr);
   }

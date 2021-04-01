@@ -1,8 +1,10 @@
 import { Injectable } from '@angular/core';
 import * as moment from 'moment';
 import { Base } from 'src/app/shared/components/base';
+import { CookieService } from 'src/app/shared/services/cookie.service';
 import { HelperService } from 'src/app/shared/services/helper.service';
 import { DayLog } from '../models/day-log';
+import { GoogleCredential } from '../models/google-credential';
 import { LogRecord } from '../models/log-record';
 import { GoogleSheetsService } from './google-sheets.service';
 
@@ -21,9 +23,13 @@ export class MoneyLoggerService extends Base {
   ]
 
   readonly NoRecords = 6;
+  readonly Cookie_ApiKey = 'ApiKey';
+  readonly Cookie_ClientId = 'ClientId';
+  readonly Cookie_SpreadsheetId = 'SpreadsheetId';
 
   constructor(private helper: HelperService,
-    private googleSheets: GoogleSheetsService) { super(); }
+    private googleSheets: GoogleSheetsService,
+    private cookie: CookieService) { super(); }
 
   async getTodayLog() {
     const today = moment();
@@ -32,7 +38,7 @@ export class MoneyLoggerService extends Base {
       const firstDayHeader = (await this.googleSheets.read(`${sheetName}!${this.DateHeaderRanges[0]}`))![0][0];
       const rangeOfTodayHeader = this.getRangeOfTodayHeader(today, firstDayHeader, sheetName);
       await this.validateDayHeaderRange(rangeOfTodayHeader, today);
-      
+
       let from = rangeOfTodayHeader!.split('!')[1].split(':')[0];
       from = `${from[0]}${+from.substring(1) + 1}`;
       let to = `${this.helper.nextCharOf(from[0])}${+from.substring(1) + this.NoRecords - 1}`;
@@ -67,8 +73,32 @@ export class MoneyLoggerService extends Base {
     this.googleSheets.write(recordsRange, records.map(r => [r.description, r.cost]));
   }
 
+  writeLoginToCookie(credential: GoogleCredential, spreadsheetId: string) {
+    this.cookie.write(this.Cookie_ApiKey, credential.apiKey, 7);
+    this.cookie.write(this.Cookie_ClientId, credential.clientId, 7);
+    this.cookie.write(this.Cookie_SpreadsheetId, spreadsheetId, 7);
+  }
+
+  readLoginCookie() {
+    const apiKey = this.cookie.get(this.Cookie_ApiKey);
+    const clientId = this.cookie.get(this.Cookie_ClientId);
+    const spreadsheetId = this.cookie.get(this.Cookie_SpreadsheetId);
+    
+    if (!apiKey || !clientId || !spreadsheetId) {
+      return null;
+    }
+
+    return {
+      credential: {
+        apiKey: apiKey,
+        clientId: clientId
+      } as GoogleCredential,
+      spreadsheetId: spreadsheetId,
+    };
+  }
+
   private getRangeOfTodayHeader(today: moment.Moment, firstDayHeader: string, sheetName: string) {
-    let date = moment(`${today.format('YYYY')} ${firstDayHeader}`);
+    let date = moment(`${today.format('YYYY')} ${firstDayHeader}`, 'YYYY MMM DD');
     for (let i = 0; i < this.DateHeaderRanges.length; i++) {
       const range = this.DateHeaderRanges[i];
       if (date.format('MMM DD') === today.format('MMM DD')) {
@@ -97,7 +127,7 @@ export class MoneyLoggerService extends Base {
         throw Error('validation failed.');
       }
       const value = values[0][0];
-      if (day.format('MMM DD') === moment(value).format('MMM DD')) {
+      if (day.format('MMM DD') === moment(value, 'MMM DD').format('MMM DD')) {
         return;
       }
       throw Error('validation failed.');

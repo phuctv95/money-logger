@@ -1,5 +1,11 @@
 <app-window header="Start Page">
-    <form class="form" [formGroup]="form" (ngSubmit)="openMoneyLogger()">
+    
+    <div *ngIf="isBusy">
+        <app-spinner [visible]="true"></app-spinner>
+        Loading ...
+    </div>
+
+    <form *ngIf="!isBusy" class="form" [formGroup]="form" (ngSubmit)="onClickOpen()">
         <label class="field-label" for="credential">Creadential:</label>
         <input class="field-value" id="credential" type="file" (change)="onFileOpened($event)"/>
         
@@ -9,4 +15,5 @@
         <button class="btn btn-primary" type="submit" [disabled]="!form.valid">Open</button>
         <app-spinner [visible]="isOpening"></app-spinner>
     </form>
+
 </app-window>

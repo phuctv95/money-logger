@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { HelperService } from 'src/app/shared/services/helper.service';
 import { GoogleCredential } from '../../models/google-credential';
 import { GoogleSheetsService } from '../../services/google-sheets.service';
+import { MoneyLoggerService } from '../../services/money-logger.service';
 
 @Component({
   selector: 'app-start-page',
@@ -16,15 +17,22 @@ export class StartPageComponent implements OnInit {
     spreadsheetUrl: new FormControl(''),
   });
 
+  isBusy = true;
   credential: GoogleCredential | undefined;
   isOpening = false;
 
   constructor(private helper: HelperService,
     private googleSheets: GoogleSheetsService,
+    private moneyLogger: MoneyLoggerService,
     private router: Router,
     private route: ActivatedRoute) { }
 
-  ngOnInit(): void {
+  async ngOnInit() {
+    const loginData = this.moneyLogger.readLoginCookie();
+    if (!!loginData) {
+      await this.openMoneyLogger(loginData.credential, loginData.spreadsheetId, false);
+    }
+    this.isBusy = false;
   }
 
   onFileOpened(e: Event) {
@@ -32,24 +40,33 @@ export class StartPageComponent implements OnInit {
     if (!selected) {
       return;
     }
-    
+
     this.helper.readFile(selected).then(
       v => this.credential = JSON.parse(v) as GoogleCredential);
   }
 
-  openMoneyLogger() {
+  async onClickOpen() {
     if (!this.credential) {
       return;
     }
     this.isOpening = true;
-    let spreadsheetId = this.googleSheets
-      .getSpreadsheetId(this.form.value.spreadsheetUrl);
-    this.googleSheets
-      .accessSpreadsheetUsingCredential(this.credential, spreadsheetId)
-      .then(_ => this.router.navigate(['today'], { relativeTo: this.route}))
-      .catch(err => {
-        alert('There\'s some error, see details in Console.');
-        console.log(err);
-      });
+
+    const spreadsheetId = this.googleSheets.getSpreadsheetId(this.form.value.spreadsheetUrl);
+    await this.openMoneyLogger(this.credential, spreadsheetId, true);
+  }
+
+  async openMoneyLogger(credential: GoogleCredential, spreadsheetId: string, saveCookie: boolean) {
+    try {
+      await this.googleSheets.accessSpreadsheetUsingCredential(credential, spreadsheetId);
+      if (saveCookie) {
+        this.moneyLogger.writeLoginToCookie(credential, spreadsheetId);
+      }
+      
+      this.router.navigate(['today'], { relativeTo: this.route });
+
+    } catch (err) {
+      alert('There\'s some error, see details in Console.');
+      console.log(err);
+    }
   }
 }
