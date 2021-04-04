@@ -12,15 +12,23 @@ jobs:
 
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v2.3.1
+        uses: actions/checkout@v2
 
       - name: Install and Build 🔧
         run: |
           npm install
           npm run build
-
+          
       - name: Deploy 🚀
-        uses: JamesIves/github-pages-deploy-action@4.1.0
-        with:
-          branch: gh-pages
-          folder: docs
+        run: |
+          cp docs/index.html docs/404.html
+          mv docs docs-tmp
+          git fetch origin gh-pages
+          git checkout -b gh-pages origin/gh-pages
+          rm -rf docs
+          mv docs-tmp docs
+          git add .
+          git config user.email "phuctv95@gmail.com"
+          git config user.name "phuc"
+          git commit -m "deploy gh-pages"
+          git push
