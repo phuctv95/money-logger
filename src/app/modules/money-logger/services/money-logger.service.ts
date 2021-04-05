@@ -49,7 +49,7 @@ export class MoneyLoggerService extends Base {
 
       const records = [] as LogRecord[];
       values.forEach(
-        v => records.push({ description: v[0], cost: +v[1] || null })
+        v => records.push({ description: v[0], cost: !!v[1] ? +v[1] : null })
       );
       for (let i = 0; i < this.NoRecords - values.length; i++) {
         records.push({ description: '', cost: null });
