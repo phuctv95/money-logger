@@ -112,8 +112,9 @@ export class MoneyLoggerService extends Base {
   private async validateDayLog(recordsRange: string, day: moment.Moment) {
     const sheetName = recordsRange.split('!')[0];
     const from = recordsRange.split('!')[1].split(':')[0];
-    const dayRange = `${sheetName}!${from[0]}${+from[1] - 1}`
-      + `:${this.helper.nextCharOf(from[0])}${+from[1] - 1}`
+    const dayRange = `${sheetName}`
+      + `!${from[0]}${+from.substring(1) - 1}`
+      + `:${this.helper.nextCharOf(from[0])}${+from.substring(1) - 1}`
     await this.validateDayHeaderRange(dayRange, day);
   }
 
