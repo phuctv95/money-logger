@@ -2,7 +2,7 @@
     
     <div *ngIf="isBusy">
         <app-spinner [visible]="true"></app-spinner>
-        Loading ...
+        Accessing the spreadsheet...
     </div>
 
     <form *ngIf="!isBusy" class="form" [formGroup]="form" (ngSubmit)="onClickOpen()">
