@@ -49,7 +49,7 @@ export class MoneyLoggerService extends Base {
 
       const records = [] as LogRecord[];
       values.forEach(
-        v => records.push({ description: v[0], cost: +v[1] || null })
+        v => records.push({ description: v[0], cost: !!v[1] ? +v[1] : null })
       );
       for (let i = 0; i < this.NoRecords - values.length; i++) {
         records.push({ description: '', cost: null });
@@ -112,8 +112,9 @@ export class MoneyLoggerService extends Base {
   private async validateDayLog(recordsRange: string, day: moment.Moment) {
     const sheetName = recordsRange.split('!')[0];
     const from = recordsRange.split('!')[1].split(':')[0];
-    const dayRange = `${sheetName}!${from[0]}${+from[1] - 1}`
-      + `:${this.helper.nextCharOf(from[0])}${+from[1] - 1}`
+    const dayRange = `${sheetName}`
+      + `!${from[0]}${+from.substring(1) - 1}`
+      + `:${this.helper.nextCharOf(from[0])}${+from.substring(1) - 1}`
     await this.validateDayHeaderRange(dayRange, day);
   }
 

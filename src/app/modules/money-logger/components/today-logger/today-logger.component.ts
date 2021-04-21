@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormArray, FormBuilder } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import * as moment from 'moment';
 import { Base as Base } from 'src/app/shared/components/base';
 import { DayLog } from '../../models/day-log';
 import { LogRecord } from '../../models/log-record';
@@ -14,7 +15,7 @@ import { MoneyLoggerService } from '../../services/money-logger.service';
 export class TodayLoggerComponent extends Base implements OnInit {
 
   isBusy = true;
-  todayHeader = `Today (${new Date().toLocaleDateString()})`;
+  todayHeader = `Today (${moment().format('MMM DD, YYYY')})`;
   isSaving = false;
   todayLog: DayLog | undefined;
 
