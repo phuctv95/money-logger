@@ -22,6 +22,15 @@ export class MoneyLoggerService extends Base {
     'B53:C53', 'D53:E53', 'F53:G53', 'H53:I53', 'J53:K53', 'L53:M53', 'N53:O53',
   ]
 
+  readonly DateHeaderRangesInNumbers = [
+    {r: 2, c: 1}, {r: 2, c: 3}, {r: 2, c: 5}, {r: 2, c: 7}, {r: 2, c: 9}, {r: 2, c: 11}, {r: 2, c: 13},
+    {r: 12, c: 1}, {r: 12, c: 3}, {r: 12, c: 5}, {r: 12, c: 7}, {r: 12, c: 9}, {r: 12, c: 11}, {r: 12, c: 13},
+    {r: 22, c: 1}, {r: 22, c: 3}, {r: 22, c: 5}, {r: 22, c: 7}, {r: 22, c: 9}, {r: 22, c: 11}, {r: 22, c: 13},
+    {r: 32, c: 1}, {r: 32, c: 3}, {r: 32, c: 5}, {r: 32, c: 7}, {r: 32, c: 9}, {r: 32, c: 11}, {r: 32, c: 13},
+    {r: 42, c: 1}, {r: 42, c: 3}, {r: 42, c: 5}, {r: 42, c: 7}, {r: 42, c: 9}, {r: 42, c: 11}, {r: 42, c: 13},
+    {r: 52, c: 1}, {r: 52, c: 3}, {r: 52, c: 5}, {r: 52, c: 7}, {r: 52, c: 9}, {r: 52, c: 11}, {r: 52, c: 13},
+  ]
+
   readonly NoRecords = 6;
   readonly Cookie_ApiKey = 'ApiKey';
   readonly Cookie_ClientId = 'ClientId';
@@ -35,6 +44,7 @@ export class MoneyLoggerService extends Base {
     const today = moment();
     const sheetName = today.format('MMM');
     try {
+      await this.createMonthSheetIfNotExist(sheetName);
       const firstDayHeader = (await this.googleSheets.read(`${sheetName}!${this.DateHeaderRanges[0]}`))![0][0];
       const rangeOfTodayHeader = this.getRangeOfTodayHeader(today, firstDayHeader, sheetName);
       await this.validateDayHeaderRange(rangeOfTodayHeader, today);
@@ -63,6 +73,34 @@ export class MoneyLoggerService extends Base {
     } catch (err) {
       return this.handleErr(err);
     }
+  }
+
+  async createMonthSheetIfNotExist(month: string) {
+    if (await this.googleSheets.checkSheetNameExist(month)) {
+      return;
+    }
+    const sheetId = await this.googleSheets.duplicateSheet('Template', month);
+    let day = moment(`${month} 01`, 'MMM DD').startOf('isoWeek');
+    const values: gapi.client.sheets.ValueRange[] = [];
+    const days = [day];
+    this.DateHeaderRanges.forEach(range => {
+      values.push({
+        range: `${month}!${range}`,
+        values: [[day.format('MMM DD')]],
+      });
+      if (day.format('MMM') === month) {
+        const char = range.split(':')[0][0];
+        const number = + range.split(':')[0].substring(1);
+        values.push({
+          range: `${month}!${char}${number + 1}:${char}${number + 3}`,
+          values: [['Breakfast'], ['Lunch'], ['Dinner']],
+        });
+      }
+      day = day.clone().add(1, 'days');
+      days.push(day);
+    });
+    await this.googleSheets.multipleWrite(values);
+    await this.setStrikethroghForNotCurrentMonth(days, sheetId, month);
   }
 
   async writeToday(records: LogRecord[], recordsRange: string) {
@@ -95,6 +133,44 @@ export class MoneyLoggerService extends Base {
       } as GoogleCredential,
       spreadsheetId: spreadsheetId,
     };
+  }
+
+  private async setStrikethroghForNotCurrentMonth(
+    daysInSheet: moment.Moment[], sheetId: number, currentMonth: string) {
+    
+    const prevMonth = moment(currentMonth, 'MMM').add(-1, 'months').month();
+    const nextMonth = moment(currentMonth, 'MMM').add(1, 'months').month();
+    const hasPreviousMonth = daysInSheet.some(d => d.month() === prevMonth);
+    const hasNextMonth = daysInSheet.some(d => d.month() === nextMonth);
+    if (hasPreviousMonth) {
+      const index = this.helper.findLastIndex(daysInSheet, d => d.month() === prevMonth);
+      await this.googleSheets.updateCellsStyle(
+        {
+          sheetId: sheetId,
+          startRowIndex: this.DateHeaderRangesInNumbers[0].r,
+          endRowIndex: this.DateHeaderRangesInNumbers[0].r + 1,
+          startColumnIndex: this.DateHeaderRangesInNumbers[0].c,
+          endColumnIndex: this.DateHeaderRangesInNumbers[index].c + 2,
+        },
+        {
+          strikethrough: true
+        });
+    }
+    if (hasNextMonth) {
+      const index = daysInSheet.findIndex( d => d.month() === nextMonth);
+      const n = this.DateHeaderRangesInNumbers.length;
+      await this.googleSheets.updateCellsStyle(
+        {
+          sheetId: sheetId,
+          startRowIndex: this.DateHeaderRangesInNumbers[n - 1].r,
+          endRowIndex: this.DateHeaderRangesInNumbers[n - 1].r + 1,
+          startColumnIndex: this.DateHeaderRangesInNumbers[index].c,
+          endColumnIndex: this.DateHeaderRangesInNumbers[n - 1].c + 2,
+        },
+        {
+          strikethrough: true
+        });
+    }
   }
 
   private getRangeOfTodayHeader(today: moment.Moment, firstDayHeader: string, sheetName: string) {

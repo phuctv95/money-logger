@@ -87,6 +87,82 @@ export class GoogleSheetsService {
     })
   }
 
+  async checkSheetNameExist(sheetName: string): Promise<boolean> {
+    const response = await this.Gapi.client.sheets.spreadsheets.get({
+      spreadsheetId: this.spreadsheetId!,
+      fields: 'sheets.properties.sheetId,sheets.properties.title',
+    });
+    return response.result.sheets!.findIndex(x => x.properties!.title === sheetName) > -1;
+  }
+
+  async updateCellsStyle(
+    range: gapi.client.sheets.GridRange,
+    textFormat: gapi.client.sheets.TextFormat) {
+    const params = {
+      spreadsheetId: this.spreadsheetId!
+    };
+    const batchUpdateSpreadsheetRequestBody = {
+      requests: [
+        {
+          repeatCell: {
+            range: range,
+            cell: {
+              userEnteredFormat: {
+                textFormat: textFormat,
+              },
+            },
+            fields: 'userEnteredFormat.textFormat'
+          }
+        }
+      ]
+    };
+    await this.Gapi.client.sheets.spreadsheets.batchUpdate(
+      params, batchUpdateSpreadsheetRequestBody);
+  }
+  
+  async multipleWrite(values: gapi.client.sheets.ValueRange[]) {
+    const body = {
+      data: values,
+      valueInputOption: 'USER_ENTERED',
+    };
+    return await this.Gapi.client.sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: this.spreadsheetId!,
+      resource: body,
+    });
+  }
+
+  async getSheetId(sheetName: string): Promise<number | undefined> {
+    const response = await this.Gapi.client.sheets.spreadsheets.get({
+      spreadsheetId: this.spreadsheetId!,
+      fields: 'sheets.properties.sheetId,sheets.properties.title',
+    });
+    const sheet = response.result.sheets!.find(x => x.properties!.title === sheetName);
+    return sheet?.properties!.sheetId;
+  }
+
+  async duplicateSheet(sheetName: string, targetName: string): Promise<number> {
+    const sheetId = await this.getSheetId(sheetName);
+    if (!sheetId) {
+      throw `Not found sheet name: ${sheetName}`;
+    }
+    const batchUpdateRequest = {
+      requests: [
+        {
+          duplicateSheet: {
+            sourceSheetId: sheetId,
+            insertSheetIndex: 0,
+            newSheetName: targetName,
+          }
+        }
+      ]
+    } as any;
+    const response = await this.Gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: this.spreadsheetId!,
+      resource: batchUpdateRequest,
+    });
+    return response.result.replies![0].duplicateSheet!.properties!.sheetId!;
+  }
+
   private loadLibraries(initCallBack: () => void) {
     this.Gapi.load('client:auth2', initCallBack);
   }

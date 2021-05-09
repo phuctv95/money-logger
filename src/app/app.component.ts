@@ -19,18 +19,18 @@ import { RouterOutlet } from '@angular/router';
             left: 0,
             width: '100%'
           })
-        ]),
+        ], { optional: true }),
         query(':enter', [
           style({ opacity: 0 })
-        ]),
-        query(':leave', animateChild()),
+        ], { optional: true }),
+        query(':leave', animateChild(), { optional: true }),
         query(':leave', [
           animate('500ms', style({ opacity: 0 }))
-        ]),
+        ], { optional: true }),
         query(':enter', [
           animate('500ms', style({ opacity: 1 }))
-        ]),
-        query(':enter', animateChild()),
+        ], { optional: true }),
+        query(':enter', animateChild(), { optional: true }),
       ]),
     ]),
   ]
@@ -38,7 +38,6 @@ import { RouterOutlet } from '@angular/router';
 export class AppComponent {
 
   getState(outlet: RouterOutlet) {
-    console.log(outlet.activatedRouteData.depth);
     return outlet && outlet.activatedRouteData && outlet.activatedRouteData.depth;
   }
   
